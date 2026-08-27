@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>钢铁雄心4 字体生成器</title>
+<style>
+  :root{
+    --bg:#1e1e2e; --panel:#2a2a3d; --panel2:#32324a; --accent:#89b4fa;
+    --text:#cdd6f4; --muted:#7f849c; --border:#45475a; --ok:#a6e3a1; --err:#f38ba8; --warn:#f9e2af;
+  }
+  *{box-sizing:border-box; font-family:"Microsoft YaHei","PingFang SC",sans-serif;}
+  body{margin:0; padding:0; background:var(--bg); color:var(--text); font-size:14px; min-height:100vh;}
+  .wrap{max-width:1150px; margin:0 auto; padding:22px;}
+  h1{font-size:21px; color:var(--accent); margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:12px; margin-bottom:22px;}
+  .grid{display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:18px;}
+  .card h2{font-size:14px; color:var(--accent); margin:0 0 14px; border-bottom:1px solid var(--border); padding-bottom:9px;}
+  label{display:block; color:var(--muted); font-size:12px; margin:12px 0 4px;}
+  label .lbl{display:inline-flex; align-items:center; gap:4px;}
+  select,input[type=text],input[type=number]{width:100%; padding:8px 11px; background:var(--panel2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-size:13px;}
+  select:focus,input:focus{outline:none; border-color:var(--accent);}
+  .row{display:flex; gap:10px;}
+  .row>div{flex:1;}
+  .btn{background:var(--accent); color:#11111b; border:none; padding:9px 16px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; margin-top:10px;}
+  .btn:hover{filter:brightness(1.12);}
+  .btn.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--border);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .cfg-list{max-height:220px; overflow-y:auto; margin-top:8px;}
+  .cfg-item{padding:8px 11px; border:1px solid var(--border); border-radius:7px; margin-bottom:6px; background:var(--panel2); cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .cfg-item:hover{border-color:var(--accent);}
+  .cfg-item.active{border-color:var(--accent); color:var(--accent); background:rgba(137,180,250,.08);}
+  .cfg-name{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .cfg-check{color:var(--accent); font-weight:700; flex:none;}
+  .cfg-del{flex:none; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; color:var(--err); font-size:14px; cursor:pointer; border-radius:4px; opacity:.55; font-weight:700;}
+  .cfg-del:hover{opacity:1; background:rgba(243,139,168,.15);}
+  .progress{height:10px; background:var(--panel2); border-radius:6px; overflow:hidden; margin-top:12px;}
+  .progress>div{height:100%; width:0%; background:var(--accent); transition:width .2s;}
+  .log{background:var(--panel2); border:1px solid var(--border); border-radius:7px; padding:10px; height:170px; overflow-y:auto; font-family:Consolas,monospace; font-size:12px; margin-top:12px; white-space:pre-wrap;}
+  .result{margin-top:12px; font-size:13px;}
+  .status-tag{display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; margin-left:6px;}
+  .ok{background:var(--ok); color:#111;} .err{background:var(--err); color:#111;} .warn{background:var(--warn); color:#111;}
+
+  /* 字体输入 + 前缀搜索框 */
+  .fontpicker{position:relative;}
+  .fontpicker input{width:100%; padding:9px 12px; padding-right:38px; background:var(--panel2); border:1px solid var(--border); border-radius:7px; color:var(--text); font-size:13px;}
+  .fontpicker .dd-btn{position:absolute; right:4px; top:50%; transform:translateY(-50%); width:30px; height:28px; background:transparent; border:none; color:var(--muted); font-size:15px; cursor:pointer; border-left:1px solid var(--border);}
+  .fontpicker .dd-btn:hover{color:var(--accent);}
+  .dd-list{position:absolute; z-index:30; top:calc(100% + 4px); left:0; right:0; background:var(--panel); border:1px solid var(--border); border-radius:8px; max-height:300px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,.5); display:none;}
+  .dd-list.open{display:block;}
+  .dd-item{padding:8px 12px; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .dd-item:hover{background:var(--panel2);}
+  .dd-item.selected{background:var(--panel2); border-left:3px solid var(--accent);}
+  .dd-item .tag{font-style:italic; font-size:11px; color:var(--warn); white-space:nowrap;}
+  .dd-empty{padding:12px; color:var(--muted); font-size:12px; text-align:center;}
+
+  /* 导入的字体文件列表 */
+  .import-list{margin-top:10px; max-height:150px; overflow-y:auto;}
+  .import-item{font-size:12px; color:var(--muted); padding:6px 8px; border-bottom:1px dashed var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .import-item b{color:var(--text); font-weight:600;}
+  .import-item .rm{width:22px; height:22px; flex:none; background:transparent; border:none; color:var(--err); font-size:16px; line-height:1; cursor:pointer; border-radius:4px; opacity:.6; font-weight:700;}
+  .import-item .rm:hover{opacity:1; background:rgba(243,139,168,.15);}
+  .import-item .rm:disabled{opacity:0; pointer-events:none;}
+
+  /* tooltip —— 用 JS 驱动的单一浮动提示框，自动避让视图边界 */
+  .tip{position:relative; cursor:help; border-bottom:1px dotted var(--muted); display:inline-flex;}
+  .tip .tiptext{display:none;}
+  #tipbox{position:fixed; z-index:2000; background:#11111b; color:#e6e6e6; border-radius:7px; padding:11px 14px; font-size:13px; line-height:1.65; font-weight:400; white-space:normal; word-break:normal; overflow-wrap:break-word; box-shadow:0 5px 22px rgba(0,0,0,.6); pointer-events:none; max-width:460px; min-width:220px; opacity:0; transition:opacity .12s ease; visibility:hidden;}
+  #tipbox.show{opacity:1; visibility:visible;}
+  .labelwrap label{margin:12px 0 4px;}
+  .labelwrap{display:flex; align-items:center; gap:4px; margin:12px 0 4px;}
+
+  /* .gfx 输出框 */
+  .gfxbox{background:#15151f; border:1px solid var(--border); border-radius:7px; padding:12px; font-family:Consolas,monospace; font-size:12px; color:var(--ok); margin-top:10px; white-space:pre; overflow-x:auto; line-height:1.5; max-height:200px; overflow-y:auto; cursor:pointer;}
+  .gfxbox:hover{border-color:var(--accent);}
+  .gfxbox .hint{color:var(--muted); font-size:11px; font-family:"Microsoft YaHei",sans-serif;}
+
+  /* 复制成功 toast */
+  .toast{position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#11111b; color:var(--ok); border:1px solid var(--ok); padding:14px 26px; border-radius:8px; font-size:15px; font-weight:600; z-index:999; opacity:0; pointer-events:none; transition:opacity .25s ease; box-shadow:0 8px 28px rgba(0,0,0,.6);}
+  .toast.show{opacity:1;}
+  .toast.hide{opacity:0;}
+  .gfxbox .hint{color:var(--muted); font-size:11px; font-family:"Microsoft YaHei",sans-serif;}
+
+  .section-title{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .checkbox-line{display:flex; align-items:center; gap:8px; margin-top:12px;}
+  .checkbox-line input[type=checkbox]{width:auto; margin:0;}
+  .checkbox-line label{margin:0; font-size:13px; color:var(--text);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>钢铁雄心4 字体生成器</h1>
+  <div class="sub">基于 FreeType 的 HOI4 字体纹理生成工具 &nbsp;·&nbsp; 自适应视觉字号 &nbsp;·&nbsp; 自动分页 &nbsp;·&nbsp; 直接产出 .fnt</div>
+
+  <div class="grid">
+    <!-- 左栏 -->
+    <div>
+      <div class="card">
+        <h2>字体</h2>
+        <!-- 选择/搜索合并输入框 -->
+        <div class="section-title"><label style="margin:0">选择字体</label></div>
+        <div class="fontpicker">
+          <input id="fontInput" type="text" placeholder="输入中/英文名搜索，如 思源、noto、黑体…"
+                 autocomplete="off" oninput="onFontInput()" onfocus="onFontInput()">
+          <button class="dd-btn" onclick="toggleFontList()">▾</button>
+          <div class="dd-list" id="ddList"></div>
+        </div>
+        <!-- 导入的字体文件显示（多选） -->
+        <div id="importSection" style="display:none">
+          <label>已导入字体</label>
+          <div class="import-list" id="importList"></div>
+        </div>
+        <button class="btn secondary" style="width:100%; margin-top:12px" onclick="importFont()">导入字体文件（可多选）</button>
+        <label>当前字体文件</label>
+        <input type="text" id="fontPath" readonly style="background:#1e1e2e" placeholder="未选择">
+        <label>字号 <span class="tip">?<span class="tiptext">游戏里引用的显示字号（对应文件名/界面 font，如 hoi_22 的 22）。唯一由你设置的数值。</span></span></label>
+        <input type="number" id="displaySize" value="22" min="8" max="200" onchange="onDisplaySizeChange()">
+        <label>字体大小 <span class="tip">(自动)<span class="tiptext">= 字号 × 4/5（向下取整）+ 1，自动算出，只读。生成时工具还会按所选字体的字形比例二次校准，使不同字体在相同字号下视觉大小一致。</span></span></label>
+        <input type="number" id="fontSize" readonly style="background:#1e1e2e">
+        <label>自定义字体名 <span class="tip">?<span class="tiptext">指定输出文件名前缀。填 TGR_song 会生成 TGR_song_0.fnt / TGR_song_0.dds；留空则用字体文件名。</span></span></label>
+        <input type="text" id="customName" placeholder="如 fsong_26，留空用字体名">
+        <label>输出目录</label>
+        <div class="fontpicker" style="position:relative">
+          <input type="text" id="outDir" placeholder="留空=字体文件同目录" onchange="syncOutDir()">
+          <button class="dd-btn" onclick="browseOutDir()">…</button>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="makeSubfolder" onchange="onSubfolder()">
+          <label for="makeSubfolder">自动生成字体文件夹 <span class="tip">?<span class="tiptext">勾选后，字体输出到「&lt;输出目录&gt;\&lt;字体名&gt;\」子文件夹内。</span></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>字符集</h2>
+        <label>档位 <span class="tip" id="charSetTip">?<span class="tiptext">选择生成的字符范围。档位越高，生成的 .dds 页数和耗时越多。</span></span></label>
+        <select id="charSet" onchange="onCharSet()"></select>
+        <div id="customChars" style="display:none">
+          <label>自定义字符区间</label>
+          <input type="text" id="customChars" placeholder='如 0x4E00-0x9FFF, 0x20-0x7E'>
+        </div>
+        <label id="charCount">字符数：—</label>
+      </div>
+
+      <div class="card">
+        <h2>配置管理</h2>
+        <div class="row">
+          <button class="btn secondary" onclick="saveConfig()">保存配置</button>
+          <button class="btn secondary" onclick="importConfig()">导入配置</button>
+        </div>
+        <div class="row">
+          <button class="btn secondary" onclick="exportConfig()">导出配置</button>
+          <button class="btn secondary" onclick="resetConfig()">回到默认</button>
+        </div>
+        <label style="margin-top:14px">配置列表 <span class="tip">?<span class="tiptext">单击=应用该配置；双击=重命名；点右侧 ✕=删除；带 ✓ 表示当前配置与该配置一致。「默认配置」不可删除/重命名/覆盖。</span></span></label>
+        <div class="cfg-list" id="cfgList"></div>
+      </div>
+
+      <div class="card">
+        <h2>生成</h2>
+        <div class="row">
+          <div><label>压缩 <span class="tip">?<span class="tiptext">DXT5：带 alpha 遮罩，抗锯齿保留、背景透明，HOI4 字体标准格式(推荐)。</span></span></label>
+            <select id="compression"><option value="DXT5" selected>DXT5 (带alpha)</option></select>
+          </div>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="useSupersampling" checked onchange="onSupersampling()">
+          <label for="useSupersampling">启用超采样 <span class="tip">?<span class="tiptext">勾选后：先高清渲染再缩小，抗锯齿更细腻，细笔画不易断裂。取消勾选则用普通渲染(更快，边缘稍硬)。</span></span></label>
+        </div>
+        <div style="margin-top:8px"><label>超采样等级 <span class="tip">?<span class="tiptext">仅在「启用超采样」勾选时生效。level 越高边缘越平滑、文件越大。DXT5 建议 level 2。</span></span></label>
+          <select id="aa"><option value="1">level 1</option><option value="2" selected>level 2</option><option value="4">level 4</option></select>
+        </div>
+        <div class="row">
+          <div><label>字符边距 <span class="tip">?<span class="tiptext">字形四周留白像素(Padding)，防止相邻字形互相污染、细笔画断裂。建议 1。</span></span></label><input type="number" id="padding" value="1" min="0" max="4"></div>
+          <div><label>间距X <span class="tip">?<span class="tiptext">字符横向间距(像素)。</span></span></label><input type="number" id="spacingX" value="1" min="0"></div>
+          <div><label>间距Y <span class="tip">?<span class="tiptext">字符纵向间距(像素)。</span></span></label><input type="number" id="spacingY" value="1" min="0"></div>
+        </div>
+        <label>线程数 <span class="tip">?<span class="tiptext">并行转用的 CPU 线程数。0=自动(用满CPU核心)，可加速压缩。</span></span></label>
+        <input type="number" id="threads" value="0" min="0">
+        <button class="btn" style="width:100%; margin-top:16px" id="genBtn" onclick="generateFont()">生成字体</button>
+      </div>
+    </div>
+
+    <!-- 右栏 -->
+    <div>
+      <div class="card">
+        <h2>进度</h2>
+        <div class="progress"><div id="progBar"></div></div>
+        <div class="log" id="log">等待操作…</div>
+      </div>
+      <div class="card result">
+        <h2>生成结果</h2>
+        <div id="result">尚未生成</div>
+        <div id="gfxSection" style="display:none">
+          <label style="margin-top:14px">.gfx 注册内容（点击复制到剪贴板）</label>
+          <div class="gfxbox" id="gfxBox" onclick="copyGfx()"></div>
+        </div>
+      </div>
+      <div class="card" id="previewSection" style="display:none">
+        <h2>字体预览 <span class="tip">?<span class="tiptext">用生成后的 .fnt/.dds 渲染，按 1920×1080 游戏窗口基准显示。字号=生成字号；滚轮缩放，100% 为 1080p 下真实大小（字不随程序窗口拉伸改变，只会变显示范围）。编辑文本即时更新，超宽自动换行。</span></span></h2>
+        <label>预览文字</label>
+        <input type="text" id="previewText" value="HOI4字体生成器的独立性由IceShake芝士红豆保障" oninput="onPreviewInput()">
+        <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+          <button class="btn secondary" style="padding:5px 12px; margin-top:0" onclick="previewZoomTo(previewZoomLevel-0.1)">－</button>
+          <span id="previewZoomLabel" style="color:var(--text); font-size:13px; min-width:56px; text-align:center;">100%</span>
+          <button class="btn secondary" style="padding:5px 12px; margin-top:0" onclick="previewZoomTo(previewZoomLevel+0.1)">＋</button>
+          <button class="btn secondary" style="padding:5px 12px; margin-top:0" onclick="previewZoomTo(1.0)" title="回到真实大小">100%</button>
+          <button class="btn secondary" style="padding:5px 12px; margin-top:0" onclick="expandPreview()">自适应</button>
+          <span style="flex:1"></span>
+          <span id="previewSizeTip" style="color:var(--muted); font-size:11px;"></span>
+        </div>
+        <div id="previewStage" style="position:relative; margin-top:10px; background:#f5f5f5; border:1px solid var(--border); border-radius:8px; width:100%; height:460px; overflow:auto; cursor:grab; display:flex;">
+          <!-- 固定尺寸的白色"窗口"(背景恒定不变)。canvasWrap 逻辑尺寸随 zoom 变化，
+               其内 canvas 为透明背景、仅字形着色，用 transform:scale 缩放——白窗不动，只有字变大变小。
+               margin:auto 使缩小的内容在窗口内居中；超出时自动滚动 -->
+          <div id="canvasWrap" style="flex:0 0 auto; margin:auto; position:relative;">
+            <canvas id="previewCanvas" width="1920" height="1080" style="display:block; transform-origin:top left; image-rendering:auto;"></canvas>
+          </div>
+        </div>
+        <div id="previewInfo" style="color:var(--muted); font-size:12px; margin-top:8px;">滚轮缩放 · 100% = 1920×1080 真实大小</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast">复制成功</div>
+<div id="tipbox"></div>
+</div>
+
+<script>
+let cfg = {};
+let allFonts = [];       // 全部字体条目(含导入)
+let selectedFontPath = '';
+const $ = id => document.getElementById(id);
+
+function apiCall(name, ...args){
+  const a = (window.pywebview && window.pywebview.api) || {};
+  const m = a[name];
+  if (typeof m !== 'function'){ log(`[方法未注册] ${name}`); return Promise.resolve(null); }
+  return m.apply(a, args);
+}
+
+// ---- JS 驱动 tooltip：自动避让视图边界 ----
+let _tipHideTimer = null;
+function initTooltips(){
+  // 事件委托到所有 .tip 元素（hover 到 .tip 外层即显示，.tiptext 是隐藏的文本源）
+  document.addEventListener('mouseover', ev=>{
+    const tip = ev.target.closest('.tip');
+    if(!tip) return;
+    // 若已经在某个 tip 内移动，不做重复处理
+    if(tip._active) return;
+    tip._active = true;
+    const text = tip.getAttribute('data-tip') || (tip.querySelector('.tiptext')?.textContent) || '';
+    showTip(text, tip);
+  });
+  document.addEventListener('mouseout', ev=>{
+    const tip = ev.target.closest('.tip');
+    if(!tip) return;
+    // 只有当鼠标真正离开 .tip 整个区域时才隐藏
+    const related = ev.relatedTarget;
+    if(related && tip.contains(related)) return;
+    tip._active = false;
+    hideTip();
+  });
+}
+function showTip(text, anchor){
+  if(!text){ hideTip(); return; }
+  const box = $('tipbox');
+  box.textContent = text;
+  box.classList.add('show');
+  // 先可见但透明以测量尺寸（用 visibility hidden 仍占位，offset 可测）
+  box.style.visibility='hidden';
+  const r = anchor.getBoundingClientRect();
+  const bw = box.offsetWidth, bh = box.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let x = r.left + r.width/2 - bw/2;
+  let y = r.top - bh - 8;               // 上方
+  if(y < 6){ y = r.bottom + 8; }        // 上方放不下 -> 下方
+  if(y + bh > vh - 6){ y = Math.max(6, vh - bh - 6); }
+  x = Math.max(6, Math.min(x, vw - bw - 6));   // 水平夹紧
+  box.style.left = x + 'px';
+  box.style.top = y + 'px';
+  box.style.visibility='visible';
+}
+function hideTip(){ const box=$('tipbox'); box.classList.remove('show'); }
+function log(s){ const el=$('log'); el.textContent += s + "\n"; el.scrollTop=el.scrollHeight; }
+function clearLog(){ $('log').textContent=''; }
+
+// ---- 字体下拉 ----
+function renderFontList(filter){
+  const q = (filter||'').toLowerCase();
+  let list = allFonts;
+  if (q) list = allFonts.filter(e => (e.search_text||'').toLowerCase().includes(q) || e.display.toLowerCase().includes(q));
+  const dd = $('ddList');
+  if (!list.length){ dd.innerHTML = '<div class="dd-empty">无匹配字体</div>'; dd.classList.add('open'); return; }
+  dd.innerHTML = list.map(e=>{
+    const imported = e.is_imported ? '<span class="tag">导入</span>' : '';
+    const sel = e.display === $('fontInput').value ? ' selected' : '';
+    return `<div class="dd-item${sel}" onclick="pickFont('${e.display.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"><span>${e.display}</span>${imported}</div>`;
+  }).join('');
+  dd.classList.add('open');
+}
+function onFontInput(){ renderFontList($('fontInput').value); }
+function toggleFontList(){ const dd=$('ddList'); if(dd.classList.contains('open')) dd.classList.remove('open'); else renderFontList($('fontInput').value); }
+function hideFontList(){ $('ddList').classList.remove('open'); }
+async function pickFont(display){
+  $('fontInput').value = display;
+  hideFontList();
+  log('选择字体: ' + display);
+  const c = await apiCall('pick_system_font', display);
+  if(c){ setCfg(c); syncFontPath(c); updateCount(); }   // 选字体后刷新字符数(完整档依赖字体)
+  else { log('✘ 未找到字体文件: ' + display); }
+}
+function syncFontPath(c){
+  if(c && c.font_file){ $('fontPath').value = c.font_file; selectedFontPath = c.font_file; }
+}
+// 点击外部关闭下拉
+document.addEventListener('click', e => { if(!e.target.closest('.fontpicker')) hideFontList(); });
+
+// ---- 导入 ----
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+async function importFont(){
+  const r = await apiCall('pick_font_dialog');
+  if(r && r.ok){
+    if((r.added||[]).length){
+      log('✔ 已导入字体: ' + (r.added||[]).join(', '));
+    }
+    if((r.dup||[]).length){
+      log('⚠ 以下字体重复/未能导入: ' + (r.dup||[]).join(', '));
+    }
+    await refreshFonts();
+    if((r.added||[]).length){
+      $('fontInput').value = (r.added||[])[0] || '';
+      const c = await apiCall('pick_system_font', (r.added||[])[0]);
+      if(c){ syncFontPath(c); updateCount(); }   // 导入字体后刷新字符数
+    }
+  } else if(r && r.msg){ log('导入取消: ' + r.msg); }
+}
+async function refreshFonts(renderList=true){
+  const fonts = await apiCall('list_system_fonts');
+  allFonts = fonts || [];
+  renderImports(fonts.filter(f=>f.is_imported));
+  // 仅当需要展示列表时才渲染字体下拉(避免删除字体时自动弹出搜索框)
+  if(renderList) renderFontList($('fontInput').value);
+}
+function renderImports(imps){
+  const sec = $('importSection');
+  if(!imps.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  $('importList').innerHTML = imps.map(e=>{
+    const fname = e.path ? e.path.replace(/\\/g,'/').split('/').pop() : '';
+    // 用 data-path 存入 base64，避免路径中的 \ 被 onclick 字符串破坏
+    const b64 = btoa(unescape(encodeURIComponent(e.path||'')));
+    return `<div class="import-item" data-path="${b64}"><span title="${esc(fname)}"><b>${esc(e.display)}</b> &nbsp;·&nbsp; ${esc(fname)}</span><button class="rm" title="移除该字体" data-rm="1">✕</button></div>`;
+  }).join('');
+}
+// 事件委托：点删除按钮移除对应导入字体
+$('importList').addEventListener('click', async (ev)=>{
+  const btn = ev.target.closest('[data-rm]');
+  if(!btn) return;
+  const item = btn.closest('[data-path]');
+  if(!item) return;
+  let path = '';
+  try{ path = decodeURIComponent(escape(atob(item.getAttribute('data-path')))); }catch(e){ path = ''; }
+  const r = await apiCall('remove_imported_font', path);
+  log('已移除字体: ' + path.replace(/\\/g,'/').split('/').pop());
+  await refreshFonts(false);   // 不渲染下拉，避免自动弹出搜索框
+});
+
+// ---- 字段同步 ----
+function syncOutDir(){ apiCall('update_field', 'out_dir', $('outDir').value); }
+function onSubfolder(){ apiCall('update_field', 'make_subfolder', $('makeSubfolder').checked); }
+async function browseOutDir(){
+  const r = await apiCall('browse_out_dir');
+  if(r && r.path){ $('outDir').value = r.path; syncOutDir(); }
+}
+function syncAllFields(){
+  apiCall('update_field', 'font_size', parseInt($('fontSize').value));
+  apiCall('update_field', 'compression', $('compression').value);
+  apiCall('update_field', 'aa', parseInt($('aa').value));
+  apiCall('update_field', 'padding', parseInt($('padding').value));
+  apiCall('update_field', 'spacing_x', parseInt($('spacingX').value));
+  apiCall('update_field', 'spacing_y', parseInt($('spacingY').value));
+  apiCall('update_field', 'threads', parseInt($('threads').value));
+  apiCall('update_field', 'char_set_preset', $('charSet').value);
+  apiCall('update_field', 'custom_name', $('customName').value);
+  apiCall('update_field', 'out_dir', $('outDir').value);
+  apiCall('update_field', 'make_subfolder', $('makeSubfolder').checked);
+  apiCall('update_field', 'use_supersampling', $('useSupersampling').checked);
+}
+function onSupersampling(){
+  $('aa').disabled = !$('useSupersampling').checked;
+  apiCall('update_field', 'use_supersampling', $('useSupersampling').checked);
+}
+function calcFontFromDisplay(ds){ return Math.max(8, Math.floor(ds * 0.8) + 1); }   // 字体大小 = 字号*4/5 + 1
+async function onDisplaySizeChange(){
+  // 改「字号」→ 重算字体大小（只读，自动）
+  const ds = parseInt($('displaySize').value) || 22;
+  const fs = calcFontFromDisplay(ds);
+  $('fontSize').value = fs;
+  apiCall('update_field', 'display_size', ds);
+  apiCall('update_field', 'font_size', fs);
+}
+let charsetInfo = {};
+async function populateCharset(){
+  const info = await apiCall('charset_info');
+  charsetInfo = info || {};
+  const sel = $('charSet');
+  const order = ['low','medium','full','custom'];
+  sel.innerHTML = order.filter(k=>charsetInfo[k]).map(k=>`<option value="${k}">${charsetInfo[k].label}</option>`).join('');
+  updateCharsetTip();
+}
+function updateCharsetTip(){
+  const v = $('charSet').value;
+  const d = charsetInfo[v];
+  const tip = document.querySelector('#charSetTip .tiptext');
+  if(d && d.desc) tip.textContent = d.desc;
+}
+async function updateCount(){
+  const v = $('charSet').value;
+  const fontFile = cfg.font_file || '';
+  const n = await apiCall('count_charset', v, fontFile);
+  $('charCount').textContent = '字符数：' + (n || 0) + (v==='full' ? ' (由字体决定)' : '');
+}
+function onCharSet(){
+  const v=$('charSet').value; $('customChars').style.display = v==='custom'?'block':'none';
+  apiCall('update_field', 'char_set_preset', v);
+  updateCharsetTip();
+  updateCount();
+}
+function setCfg(c){ if(c){ cfg=c; } }
+
+// 配置名转义：用于 onclick 字符串（控制引号/反斜杠破坏）
+function cfgAttr(n){ return String(n).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+async function resetConfig(){ const c = await apiCall('reset_config'); if(c){ setCfg(c); applyConfig(c); refreshConfigList(); } }
+async function saveConfig(){
+  const r = await apiCall('save_config');
+  if(r && r.ok){ log('✔ 已保存配置: ' + r.name); refreshConfigList(); }
+  else if(r && r.msg){ log('✘ ' + r.msg); showToast(r.msg); }
+}
+async function importConfig(){
+  const r = await apiCall('import_config');
+  if(r && r.ok){ log('✔ ' + (r.msg||'已导入')); await refreshConfigList(); }
+  else if(r && r.msg) log('✘ ' + r.msg);
+}
+// 导出：弹出可选配置列表弹窗
+async function exportConfig(){
+  const items = (await apiCall('config_list')) || [];
+  const names = items.map(x=>x.name);
+  if(names.length === 1){
+    // 只有默认配置一种 -> 直接进入导出（单配置流程）
+    const r = await apiCall('export_config', names);
+    if(r && r.msg) log((r.ok?'✔ ':'✘ ') + r.msg);
+    return;
+  }
+  // 多配置 -> 展示勾选弹窗
+  const dlg = document.createElement('div');
+  dlg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;';
+  dlg.innerHTML = `<div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;width:360px;">
+    <h3 style="margin:0 0 10px;color:var(--accent);font-size:15px;">选择要导出的配置</h3>
+    <div id="expList" style="max-height:260px;overflow-y:auto;">${names.map((n,i)=>`<div class="checkbox-line" style="margin:4px 0"><input type="checkbox" id="exp_${i}" value="${cfgAttr(n)}" ${i===0?'checked':''}><label for="exp_${i}">${n}</label></div>`).join('')}</div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn secondary" onclick="this.closest('div').parentElement.remove()">取消</button>
+      <button class="btn" onclick="confirmExport()">导出所选</button>
+    </div></div>`;
+  document.body.appendChild(dlg);
+  window._expNames = names; window._expDlg = dlg;
+}
+async function confirmExport(){
+  const dlg = window._expDlg; if(!dlg) return;
+  const names = window._expNames || [];
+  const sel = [];
+  names.forEach((n,i)=>{ const cb = document.getElementById('exp_'+i); if(cb && cb.checked) sel.push(n); });
+  if(!sel.length){ showToast('请至少选择一个配置'); return; }
+  dlg.remove(); window._expDlg=null;
+  const r = await apiCall('export_config', sel);
+  if(r && r.msg) log((r.ok?'✔ ':'✘ ') + r.msg);
+}
+async function generateFont(){
+  const btn = $('genBtn'); btn.disabled = true; btn.textContent = '生成中…';
+  try{
+    syncAllFields();
+    const r = await apiCall('generate');
+    if(r && r.ok){
+      $('progBar').style.width = '100%';
+      const mis = (r.missing||0);
+      log('✔ 生成完成: ' + (r.pages||[]).length + ' 页, ' + (r.chars||0) + ' 字符' + (mis>0?('，缺失 ' + mis + ' 个字符'):''));
+      $('result').innerHTML = '<span class="status-tag ok">成功</span> ' + (r.chars||0) + ' 字符, ' + (r.pages||[]).length + ' 页'
+        + (mis>0?('<br><span class="status-tag warn">注意</span> 该字体缺失 ' + mis + ' 个字符，未能生成'):'')
+        + '<br>输出目录: ' + r.out_dir;
+      if(r.gfx){ $('gfxBox').textContent = r.gfx; $('gfxSection').style.display = 'block'; }
+      else { $('gfxSection').style.display = 'none'; }
+      loadPreview();
+    } else {
+      log('✘ 生成失败: ' + (r && r.msg || '未知错误'));
+      $('result').innerHTML = '<span class="status-tag err">失败</span> ' + (r && r.msg || '');
+      $('gfxSection').style.display = 'none';
+    }
+  } catch(e){ log('✘ 异常: ' + e); }
+  btn.disabled = false; btn.textContent = '生成字体';
+}
+
+let _toastTimer = null;
+function showToast(msg){
+  const t = $('toast'); t.textContent = msg;
+  t.classList.remove('hide'); t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>{ t.classList.remove('show'); t.classList.add('hide'); setTimeout(()=>t.classList.remove('hide'), 300); }, 1600);
+}
+async function copyGfx(){
+  const txt = $('gfxBox').textContent;
+  let ok = false;
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(txt); ok = true; }
+  }catch(e){ ok = false; }
+  if(!ok){
+    // 回退：用临时 textarea + execCommand
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+    }catch(e){ ok = false; }
+  }
+  showToast(ok ? '复制成功' : '复制失败');
+}
+
+// ---- 字体预览 ----
+let _previewTimer = null;
+let previewZoomLevel = 1.0;      // 1.0 = 100% (1920x1080 真实大小，1 逻辑像素=1 CSS 像素)
+let previewImg = null;
+async function loadPreview(){
+  const text = $('previewText').value;
+  try{
+    const r = await apiCall('preview_font', text);
+    if(r && r.ok){
+      $('previewSection').style.display = 'block';
+      const img = new Image();
+      img.onload = ()=>{
+        const cv = $('previewCanvas');
+        const ctx = cv.getContext('2d');
+        ctx.clearRect(0,0,cv.width,cv.height);
+        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        previewImg = img;
+        // 首次载入自动"自适应"到窗口宽(内容完整可见)，之后保持用户缩放
+        if(!window._previewInitDone){ expandPreview(); window._previewInitDone = true; }
+        else { applyPreviewZoom(); }
+      };
+      img.src = 'data:image/png;base64,' + r.png;
+    } else if(r && r.msg){
+      log('✘ 预览失败: ' + r.msg);
+    }
+  }catch(e){ log('✘ 预览异常: ' + e); }
+}
+function applyPreviewZoom(){
+  // 预蟠舞台(previewStage)是固定白色"窗口"(高度460px、宽度100%)，背景恒定不变。
+  // 通过设置 canvas 的 CSS width/height = 1920*z × 1080*z 来缩放字形：
+  //   · canvas 内部分辨率恒为 1920×1080，100% 时 1:1 清晰；
+  //   · 放大(>100%) 是查看细节，缩小(<100%) 整图变小；
+  //   · canvasWrap 尺寸跟随 canvas CSS 尺寸，margin:auto 使内容居中，超出则滚动。
+  // 白色窗口本身不随缩放变化，只有字形变大变小。
+  const cv = $('previewCanvas');
+  const wrap = $('canvasWrap');
+  const w = 1920, h = 1080;
+  const z = previewZoomLevel;
+  cv.style.width = Math.round(w * z) + 'px';
+  cv.style.height = Math.round(h * z) + 'px';
+  wrap.style.width = Math.round(w * z) + 'px';
+  wrap.style.height = Math.round(h * z) + 'px';
+  $('previewZoomLabel').textContent = Math.round(z*100) + '%';
+  $('previewSizeTip').textContent = '字 ' + Math.round(w*z) + '×' + Math.round(h*z) + ' (100%=1920×1080)';
+  const info = $('previewInfo');
+  if(info) info.textContent = '滚轮缩放 · 100% = 1920×1080 真实大小 · 缩放只作用于字，白色窗口不变';
+}
+function previewZoom(delta){
+  previewZoomLevel = Math.max(0.25, Math.min(3.0, previewZoomLevel + delta/100));
+  applyPreviewZoom();
+}
+function expandPreview(){
+  // 自适应：让画布逻辑宽度适应舞台宽度(缩放到能完整看到，窗口不变)
+  const stage = $('previewStage');
+  const w = stage.clientWidth;
+  const fit = Math.min(3, Math.max(0.1, w / 1920));
+  previewZoomLevel = fit;
+  applyPreviewZoom();
+}
+function previewZoomTo(level){
+  previewZoomLevel = Math.max(0.1, Math.min(3.0, level));
+  applyPreviewZoom();
+}
+function onPreviewInput(){
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(loadPreview, 400);   // debounce 400ms
+}
+// 滚轮缩放
+document.getElementById('previewStage').addEventListener('wheel', ev=>{
+  ev.preventDefault();
+  const d = ev.deltaY < 0 ? 10 : -10;
+  previewZoomLevel = Math.max(0.25, Math.min(3.0, previewZoomLevel + d/100));
+  applyPreviewZoom();
+}, {passive:false});
+// 拖拽平移(当放大超过舞台时)
+(function(){ 
+  let down=false, sx=0, sy=0, sl=0, st=0;
+  const sc = document.getElementById('previewStage');
+  sc.addEventListener('mousedown', e=>{ down=true; sx=e.clientX; sy=e.clientY; sl=sc.scrollLeft; st=sc.scrollTop; sc.style.cursor='grabbing'; });
+  window.addEventListener('mouseup', ()=>{ down=false; sc.style.cursor='grab'; });
+  sc.addEventListener('mousemove', e=>{ if(down){ sc.scrollLeft = sl - (e.clientX-sx); sc.scrollTop = st - (e.clientY-sy); } });
+})();
+
+function renderCfgItems(items){
+  if(!items){ $('cfgList').innerHTML=''; return; }
+  $('cfgList').innerHTML = items.map(it=>{
+    const prot = it.protected;
+    const active = it.active;
+    const delBtn = prot ? '' : `<span class="cfg-del" data-del="1" title="删除该配置">✕</span>`;
+    return `<div class="cfg-item ${active?'active':''}" data-name="${esc(it.name)}" data-prot="${prot?1:0}">
+        <span class="cfg-name">${esc(it.name)}</span>
+        ${active?'<span class="cfg-check">✓</span>':''}${delBtn}
+      </div>`;
+  }).join('');
+}
+// 事件委托：单击=应用配置，双击=重命名，点叉=删除
+$('cfgList').addEventListener('click', ev=>{
+  const x = ev.target.closest('[data-del]');
+  if(x){ const n = x.closest('[data-name]'); if(n) deleteCfg(n.getAttribute('data-name')); return; }
+  const item = ev.target.closest('[data-name]'); if(!item) return;
+  loadCfg(item.getAttribute('data-name'));
+});
+$('cfgList').addEventListener('dblclick', ev=>{
+  const item = ev.target.closest('[data-name]');
+  if(!item) return;
+  const name = item.getAttribute('data-name');
+  if(item.getAttribute('data-prot')==='1'){ showToast('「默认配置」不可重命名'); return; }
+  renameCfg(name);
+});
+async function refreshConfigList(){
+  const items = await apiCall('config_list');
+  renderCfgItems(items);
+}
+async function loadCfg(name){
+  const c = await apiCall('load_config', name);
+  if(c){ setCfg(c); applyConfig(c); }
+  refreshConfigList();
+}
+async function renameCfg(old){
+  const newname = prompt('重命名配置「' + old + '」为:');
+  if(newname === null || newname.trim() === ''){ return; }
+  const r = await apiCall('rename_config', old, newname.trim());
+  if(r && r.ok){ log('✔ 已重命名为 ' + r.name); } else if(r && r.msg){ log('✘ ' + r.msg); showToast(r.msg); }
+  refreshConfigList();
+}
+async function deleteCfg(name){
+  if(!confirm('确定删除配置「' + name + '」？')) return;
+  const r = await apiCall('delete_config', name);
+  if(r && r.ok){ log('✔ 已删除配置: ' + name); } else if(r && r.msg){ log('✘ ' + r.msg); showToast(r.msg); }
+  refreshConfigList();
+}
+
+function applyConfig(init){
+  if(!init) return;
+  $('displaySize').value = init.display_size || 22;
+  $('fontSize').value = calcFontFromDisplay(parseInt($('displaySize').value));
+  $('compression').value = init.compression || 'DXT5';
+  $('aa').value = init.aa || 2;
+  $('padding').value = init.padding ?? 1;
+  $('spacingX').value = init.spacing_x ?? 1;
+  $('spacingY').value = init.spacing_y ?? 1;
+  $('threads').value = init.threads || 0;
+  if(charsetInfo[init.char_set_preset]){ $('charSet').value = init.char_set_preset; }
+  else { $('charSet').value = 'medium'; }
+  updateCharsetTip();
+  $('customName').value = init.custom_name || '';
+  $('outDir').value = init.out_dir || '';
+  $('makeSubfolder').checked = !!init.make_subfolder;
+  $('useSupersampling').checked = !!init.use_supersampling;
+  $('aa').disabled = !$('useSupersampling').checked;
+  $('fontPath').value = init.font_file || '';
+  if(init.font_name){ $('fontInput').value = init.font_name; }
+  updateCount();
+}
+
+function boot(){
+  clearLog(); log('界面已就绪');
+  initTooltips();
+  apiCall('list_system_fonts').then(fonts => { allFonts = fonts || []; renderImports(fonts.filter(f=>f.is_imported)); });
+  populateCharset().then(()=> apiCall('get_config').then(init => applyConfig(init)));
+  refreshConfigList();
+}
+if (window.pywebview && window.pywebview.api) boot();
+else window.addEventListener('pywebviewready', boot);
+</script>
+</body>
+</html>
